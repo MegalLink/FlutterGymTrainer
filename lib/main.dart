@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/exercise_set.dart';
 import 'pages/index.dart';
 import 'controllers/exercise_controller.dart';
 import 'controllers/training_controller.dart';
@@ -8,10 +10,24 @@ import 'services/database_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize database
+  // Initialize database service
   final databaseService = DatabaseService();
   await databaseService.initDatabase();
+  
+  // Register database service with GetX
+  Get.put<DatabaseService>(databaseService);
 
+  // Initialize Hive
+  await Hive.initFlutter();
+  
+  // Register adapters for active training
+  if (!Hive.isAdapterRegistered(4)) {
+    Hive.registerAdapter(ExerciseSetAdapter());
+  }
+  if (!Hive.isAdapterRegistered(5)) {
+    Hive.registerAdapter(ExerciseProgressAdapter());
+  }
+  
   // Initialize controllers
   Get.put(ExerciseController());
   Get.put(TrainingController());

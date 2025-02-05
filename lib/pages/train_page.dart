@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'dart:io';
 import '../controllers/exercise_controller.dart';
 import '../controllers/training_controller.dart';
+import 'active_training_page.dart';
 
 class TrainPage extends StatelessWidget {
   const TrainPage({super.key});
@@ -104,11 +105,7 @@ class TrainPage extends StatelessWidget {
                           children: [
                             ElevatedButton.icon(
                               onPressed: () {
-                                Get.snackbar(
-                                  'Entrenamiento iniciado',
-                                  'Iniciando entrenamiento: ${training.name}',
-                                  snackPosition: SnackPosition.BOTTOM,
-                                );
+                                Get.to(() => ActiveTrainingPage(training: training));
                               },
                               icon: const Icon(Icons.play_arrow),
                               label: const Text('Iniciar entrenamiento'),

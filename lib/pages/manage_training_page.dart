@@ -191,7 +191,7 @@ class _TrainingSection extends StatelessWidget {
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 );
