@@ -85,16 +85,6 @@ class TrainPage extends StatelessWidget {
                                   : const Icon(Icons.fitness_center),
                               title: Text(exercise.name),
                               subtitle: Text(exercise.category),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.play_arrow),
-                                onPressed: () {
-                                  Get.snackbar(
-                                    'Ejercicio iniciado',
-                                    'Iniciando ${exercise.name}',
-                                    snackPosition: SnackPosition.BOTTOM,
-                                  );
-                                },
-                              ),
                             );
                           },
                         ),

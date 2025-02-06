@@ -34,6 +34,12 @@ class DatabaseService {
     return box.values.toList();
   }
 
+   Future<Exercise> getExerciseById(String id) async {
+    final box = getExercisesBox();
+    
+    return box.values.toList().firstWhere((exercise) => exercise.id == id);
+  }
+
   Future<void> insertExercise(Exercise exercise) async {
     final box = getExercisesBox();
     await box.put(exercise.id, exercise);

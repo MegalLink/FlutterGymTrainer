@@ -57,7 +57,7 @@ class ExerciseProgressAdapter extends TypeAdapter<ExerciseProgress> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return ExerciseProgress(
-      exerciseId: fields[0] as String,
+      exerciseName: fields[0] as String,
       sets: (fields[1] as List?)?.cast<ExerciseSet>(),
       isCompleted: fields[2] as bool,
       targetSets: fields[3] as int,
@@ -69,7 +69,7 @@ class ExerciseProgressAdapter extends TypeAdapter<ExerciseProgress> {
     writer
       ..writeByte(4)
       ..writeByte(0)
-      ..write(obj.exerciseId)
+      ..write(obj.exerciseName)
       ..writeByte(1)
       ..write(obj.sets)
       ..writeByte(2)

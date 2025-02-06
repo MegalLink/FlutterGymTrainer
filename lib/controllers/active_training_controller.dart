@@ -15,26 +15,46 @@ class ActiveTrainingController extends GetxController {
   Timer? restTimer;
   final RxInt defaultRestTime = 60.obs; // Tiempo de descanso por defecto en segundos
   final RxBool isSaving = false.obs;
+  final RxBool autoStartTimer = false.obs;
+  
+  // Map to store weight controllers for each exercise
+  final Map<String, TextEditingController> weightControllers = {};
+  // Map to store weight units for each exercise
+  final Map<String, String> weightUnits = {};
 
   ActiveTrainingController(this.training) : databaseService = Get.find<DatabaseService>() {
-    _loadSavedProgress();
+    _initializeProgress();
   }
 
-  Future<void> _loadSavedProgress() async {
-    final savedProgress = await databaseService.getActiveTrainingProgress(training.id);
-    
-    if (savedProgress != null) {
-      exerciseProgress.clear();
-      final List<dynamic> progressList = savedProgress['progress'];
-      exerciseProgress.addAll(
-        progressList.map((json) => ExerciseProgress.fromJson(json)).toList()
-      );
-    } else {
-      // Inicializar el progreso para cada ejercicio si no hay datos guardados
-      for (var exerciseId in training.exerciseIds) {
-        exerciseProgress.add(ExerciseProgress(exerciseId: exerciseId));
-      }
+  Future<void> _initializeProgress() async {
+    // Inicializar el progreso para cada ejercicio
+    for (var exerciseId in training.exerciseIds) {
+      final exercise = await databaseService.getExerciseById(exerciseId);
+   
+        exerciseProgress.add(ExerciseProgress(exerciseName: exercise.name));
+      
     }
+  }
+
+  TextEditingController getWeightController(ExerciseProgress progress) {
+    if (!weightControllers.containsKey(progress.exerciseName)) {
+      weightControllers[progress.exerciseName] = TextEditingController();
+    }
+    return weightControllers[progress.exerciseName]!;
+  }
+
+  String getWeightUnit(ExerciseProgress progress) {
+    final exerciseName = progress.exerciseName;
+    if (!weightUnits.containsKey(exerciseName)) {
+      weightUnits[exerciseName] = 'kg';
+    }
+    return weightUnits[exerciseName]!;
+  }
+
+  void setWeightUnit(ExerciseProgress progress, String unit) {
+    final exerciseName = progress.exerciseName;
+    weightUnits[exerciseName] = unit;
+    update();
   }
 
   void startRest([int? customTime]) {
@@ -54,24 +74,44 @@ class ActiveTrainingController extends GetxController {
     }
   }
 
-  void addSetToExercise(String exerciseId, int repetitions) {
+  void addSetToExercise(String exerciseName, int repetitions) {
     final progress = exerciseProgress.firstWhere(
-      (p) => p.exerciseId == exerciseId,
+      (p) => p.exerciseName == exerciseName,
     );
-    progress.addSet(repetitions);
+    
+    double? weight;
+    String? weightUnit;
+    
+    final weightText = weightControllers[exerciseName]?.text;
+    if (weightText != null && weightText.isNotEmpty) {
+      weight = double.tryParse(weightText);
+      weightUnit = weightUnits[exerciseName];
+    }
+    
+    progress.addSet(
+      repetitions,
+      weight: weight,
+      weightUnit: weightUnit,
+    );
+    
     exerciseProgress.refresh();
+    
+    // Start rest timer automatically if enabled
+    if (autoStartTimer.value) {
+      startRest();
+    }
   }
 
-  void markExerciseAsCompleted(String exerciseId) {
+  void markExerciseAsCompleted(String exerciseName) {
     final progress = exerciseProgress.firstWhere(
-      (p) => p.exerciseId == exerciseId,
+      (p) => p.exerciseName == exerciseName,
     );
     progress.isCompleted = true;
     exerciseProgress.refresh();
   }
 
-  void updateTargetSets(String exerciseId, int change) {
-    final progress = exerciseProgress.firstWhere((p) => p.exerciseId == exerciseId);
+  void updateTargetSets(String exerciseName, int change) {
+    final progress = exerciseProgress.firstWhere((p) => p.exerciseName == exerciseName);
     final newTarget = progress.targetSets + change;
     if (newTarget >= 1) {  // Asegurar que no sea menor a 1
       progress.targetSets = newTarget;
@@ -79,8 +119,8 @@ class ActiveTrainingController extends GetxController {
     }
   }
 
-  void removeSet(String exerciseId, int setNumber) {
-    final progress = exerciseProgress.firstWhere((p) => p.exerciseId == exerciseId);
+  void removeSet(String exerciseName, int setNumber) {
+    final progress = exerciseProgress.firstWhere((p) => p.exerciseName == exerciseName);
     progress.sets.removeWhere((set) => set.setNumber == setNumber);
     // Reordenar los números de serie
     for (var i = 0; i < progress.sets.length; i++) {
@@ -117,10 +157,17 @@ class ActiveTrainingController extends GetxController {
     try {
       isSaving.value = true;
       
-      await databaseService.saveActiveTrainingProgress(training.id, {
-        'progress': exerciseProgress.map((progress) => progress.toJson()).toList(),
-        'lastUpdated': DateTime.now().toIso8601String(),
-      });
+      // Convertir el progreso actual a formato JSON
+      final progressJson = exerciseProgress.map((progress) => progress.toJson()).toList();
+      final uniqueId =  DateTime.now().millisecondsSinceEpoch.toString();
+      // Guardar en la base de datos
+      await databaseService.saveActiveTrainingProgress(
+        uniqueId,
+        { 'progress': progressJson},
+      );
+
+      // Reiniciar el estado del entrenamiento
+      await _resetTrainingState();
 
       Get.snackbar(
         'Éxito',
@@ -140,6 +187,22 @@ class ActiveTrainingController extends GetxController {
     } finally {
       isSaving.value = false;
     }
+  }
+
+  Future<void> _resetTrainingState() async {
+    // Limpiar el progreso actual
+    exerciseProgress.clear();
+    
+    // Reiniciar los controladores de peso y unidades
+    weightControllers.forEach((_, controller) => controller.clear());
+    weightUnits.clear();
+    
+    // Reiniciar el temporizador y estados
+    stopRest();
+    isExpanded.value = false;
+    
+    // Inicializar nuevo progreso
+    await _initializeProgress();
   }
 
   @override

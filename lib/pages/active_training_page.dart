@@ -4,6 +4,7 @@ import 'dart:io';
 import '../controllers/active_training_controller.dart';
 import '../controllers/exercise_controller.dart';
 import '../models/exercise.dart';
+import '../models/exercise_set.dart';
 import '../models/training.dart';
 import '../widgets/rest_timer_widget.dart';
 
@@ -23,18 +24,41 @@ class ActiveTrainingPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(training.name),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Obx(() => FloatingActionButton(
+              mini: true,
+              onPressed: controller.isSaving.value 
+                ? null 
+                : () {
+                    controller.saveTrainingSession();
+                    Get.back();
+                  },
+              child: controller.isSaving.value
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Icon(Icons.save),
+            )),
+          ),
+        ],
       ),
-      floatingActionButton: Obx(() => FloatingActionButton(
-        onPressed: controller.isSaving.value ? null : controller.saveTrainingSession,
-        child: controller.isSaving.value
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Icon(Icons.save),
-      )),
       body: Stack(
         children: [
-          // Lista de ejercicios
           Column(
             children: [
+              // Automatic timer checkbox
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Obx(() => Checkbox(
+                      value: controller.autoStartTimer.value,
+                      onChanged: (value) => controller.autoStartTimer.value = value ?? false,
+                    )),
+                    const Text('Temporizador automático'),
+                  ],
+                ),
+              ),
               Expanded(
                 child: ListView.builder(
                   itemCount: training.exerciseIds.length,
@@ -42,7 +66,7 @@ class ActiveTrainingPage extends StatelessWidget {
                     left: 10,
                     right: 10,
                     top: 10,
-                    bottom: 80, // Espacio para el temporizador colapsado
+                    bottom: 80,
                   ),
                   itemBuilder: (context, index) {
                     final exerciseId = training.exerciseIds[index];
@@ -51,7 +75,7 @@ class ActiveTrainingPage extends StatelessWidget {
 
                     return Obx(() {
                       final progress = controller.exerciseProgress
-                          .firstWhere((p) => p.exerciseId == exerciseId);
+                          .firstWhere((p) => p.exerciseName == exercise.name);
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -99,25 +123,15 @@ class ActiveTrainingPage extends StatelessWidget {
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        iconSize: 20,
-                                        icon: const Icon(Icons.remove),
-                                        onPressed: () =>
-                                            controller.updateTargetSets(exercise.id, -1),
+                                        icon: const Icon(Icons.remove_circle_outline),
+                                        onPressed: () => controller.updateTargetSets(progress.exerciseName, -1),
                                       ),
-                                      Text(
-                                        '${progress.sets.length}/${progress.targetSets} series',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                      ),
+                                      Text('${progress.sets.length}/${progress.targetSets} series'),
                                       IconButton(
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        iconSize: 20,
-                                        icon: const Icon(Icons.add),
-                                        onPressed: () =>
-                                            controller.updateTargetSets(exercise.id, 1),
+                                        icon: const Icon(Icons.add_circle_outline),
+                                        onPressed: () => controller.updateTargetSets(progress.exerciseName, 1),
                                       ),
                                     ],
                                   ),
@@ -164,7 +178,7 @@ class ActiveTrainingPage extends StatelessWidget {
                                                   size: 18,
                                                 ),
                                                 onDeleted: () => controller.removeSet(
-                                                  exercise.id,
+                                                  progress.exerciseName,
                                                   set.setNumber,
                                                 ),
                                               ))
@@ -267,14 +281,57 @@ class ActiveTrainingPage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Agregar serie $setNumber - ${exercise.name}'),
-        content: TextField(
-          controller: repetitionsController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Número de repeticiones',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: repetitionsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Número de repeticiones',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller.getWeightController(ExerciseProgress(exerciseName: exercise.name)),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Peso',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GetBuilder<ActiveTrainingController>(
+                  builder: (controller) {
+                    final currentUnit = controller.getWeightUnit(
+                      ExerciseProgress(exerciseName: exercise.name)
+                    );
+                    return DropdownButton<String>(
+                      value: currentUnit,
+                      items: const [
+                        DropdownMenuItem(value: 'kg', child: Text('kg')),
+                        DropdownMenuItem(value: 'lbs', child: Text('lbs')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          controller.setWeightUnit(
+                            ExerciseProgress(exerciseName: exercise.name),
+                            value,
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -285,13 +342,13 @@ class ActiveTrainingPage extends StatelessWidget {
             onPressed: () {
               final repetitions = int.tryParse(repetitionsController.text);
               if (repetitions != null && repetitions > 0) {
-                controller.addSetToExercise(exercise.id, repetitions);
+                controller.addSetToExercise(exercise.name, repetitions);
                 Navigator.pop(context);
                 if (controller.exerciseProgress
-                    .firstWhere((p) => p.exerciseId == exercise.id)
+                    .firstWhere((p) => p.exerciseName == exercise.name)
                     .sets
                     .length >= controller.exerciseProgress
-                    .firstWhere((p) => p.exerciseId == exercise.id)
+                    .firstWhere((p) => p.exerciseName == exercise.name)
                     .targetSets) {
                   controller.startRest(); // Iniciar descanso automáticamente si completamos las series objetivo
                 }
