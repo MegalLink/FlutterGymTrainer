@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/exercise.dart';
 import '../models/training.dart';
+import '../models/exercise_set.dart';
 
 class DatabaseService {
   static const String exercisesBoxName = 'exercises';
@@ -17,11 +18,20 @@ class DatabaseService {
     if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(TrainingAdapter());
     }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(ExerciseSetAdapter());
+    }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(ExerciseSessionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(ExerciseProgressAdapter());
+    }
     
     // Open boxes
     await Hive.openBox<Exercise>(exercisesBoxName);
     await Hive.openBox<Training>(trainingsBoxName);
-    await Hive.openBox(activeTrainingBoxName);
+    await Hive.openBox<ExerciseSession>(activeTrainingBoxName);
   }
 
   // Exercise methods
@@ -34,7 +44,7 @@ class DatabaseService {
     return box.values.toList();
   }
 
-   Future<Exercise> getExerciseById(String id) async {
+  Future<Exercise> getExerciseById(String id) async {
     final box = getExercisesBox();
     
     return box.values.toList().firstWhere((exercise) => exercise.id == id);
@@ -81,28 +91,37 @@ class DatabaseService {
   }
 
   // Active Training methods
-  Box getActiveTrainingBox() {
-    return Hive.box(activeTrainingBoxName);
+  Box<ExerciseSession> getActiveTrainingBox() {
+    return Hive.box<ExerciseSession>(activeTrainingBoxName);
   }
 
-  Future<Map<dynamic, dynamic>> getActiveTrainingData() async {
+  Future<void> saveActiveTrainingProgress(String trainingId, List<ExerciseProgress> progress) async {
     final box = getActiveTrainingBox();
-    return box.toMap();
+    final session = ExerciseSession(
+      trainingId: trainingId,
+      exerciseProgress: progress,
+    );
+    await box.put(trainingId, session);
   }
 
-  Future<void> saveActiveTrainingProgress(String trainingId, Map<String, dynamic> progress) async {
-    final box = getActiveTrainingBox();
-    await box.put(trainingId, progress);
-  }
-
-  Future<Map<String, dynamic>?> getActiveTrainingProgress(String trainingId) async {
+  Future<ExerciseSession?> getActiveTrainingProgress(String trainingId) async {
     final box = getActiveTrainingBox();
     return box.get(trainingId);
   }
 
-  Future<void> deleteActiveTrainingProgress(String trainingId) async {
+  Future<List<ExerciseSession>> getAllActiveTrainingSessions() async {
+    final box = getActiveTrainingBox();
+    return box.values.toList();
+  }
+
+  Future<void> deleteActiveTrainingSession(String trainingId) async {
     final box = getActiveTrainingBox();
     await box.delete(trainingId);
+  }
+
+  Future<void> deleteAllActiveTrainingSessions() async {
+    final box = getActiveTrainingBox();
+    await box.clear();
   }
 
   // Cleanup

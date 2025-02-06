@@ -157,13 +157,12 @@ class ActiveTrainingController extends GetxController {
     try {
       isSaving.value = true;
       
-      // Convertir el progreso actual a formato JSON
-      final progressJson = exerciseProgress.map((progress) => progress.toJson()).toList();
-      final uniqueId =  DateTime.now().millisecondsSinceEpoch.toString();
-      // Guardar en la base de datos
+      final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // Guardar en la base de datos usando la nueva interfaz
       await databaseService.saveActiveTrainingProgress(
         uniqueId,
-        { 'progress': progressJson},
+        exerciseProgress.toList(),
       );
 
       // Reiniciar el estado del entrenamiento

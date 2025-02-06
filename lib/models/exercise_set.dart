@@ -93,7 +93,7 @@ class ExerciseProgress {
   );
 }
 
-@HiveType(typeId: 5)
+@HiveType(typeId: 6)
 class ExerciseSession {
   @HiveField(0)
   final String trainingId;

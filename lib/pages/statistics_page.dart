@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/database_service.dart';
+import '../models/exercise_set.dart';
 
 class StatisticsPage extends StatefulWidget {
-  const StatisticsPage({super.key});
+  const StatisticsPage({
+    super.key
+    
+    });
 
   @override
   State<StatisticsPage> createState() => _StatisticsPageState();
@@ -11,7 +15,7 @@ class StatisticsPage extends StatefulWidget {
 
 class _StatisticsPageState extends State<StatisticsPage> {
   final DatabaseService _databaseService = Get.find<DatabaseService>();
-
+  
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -35,8 +39,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   Widget _buildActiveTrainingTab() {
-    return FutureBuilder(
-      future: _databaseService.getActiveTrainingData(),
+    return FutureBuilder<List<ExerciseSession>>(
+      future: _databaseService.getAllActiveTrainingSessions(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -46,21 +50,21 @@ class _StatisticsPageState extends State<StatisticsPage> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        final activeTrainingData = snapshot.data as Map<dynamic, dynamic>;
+        final sessions = snapshot.data ?? [];
         
-        if (activeTrainingData.isEmpty) {
-          return const Center(child: Text('No hay entrenamiento activo guardado'));
+        if (sessions.isEmpty) {
+          return const Center(child: Text('No hay entrenamientos guardados'));
         }
 
         return ListView.builder(
-          itemCount: activeTrainingData.length,
+          itemCount: sessions.length,
           itemBuilder: (context, index) {
-            final key = activeTrainingData.keys.elementAt(index);
-            final value = activeTrainingData[key];
+            final session = sessions[index];
             return Card(
               margin: const EdgeInsets.all(8),
               child: ExpansionTile(
-                title: Text('Training ID: $key'),
+                title: Text('Entrenamiento: ${session.trainingId}'),
+                subtitle: Text('Ejercicios: ${session.exerciseProgress.length}'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -79,7 +83,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                               ),
                               TextButton(
                                 onPressed: () async {
-                                  await _databaseService.deleteActiveTrainingProgress(key.toString());
+                                  await _databaseService.deleteActiveTrainingSession(session.trainingId);
                                   Navigator.pop(context);
                                   setState(() {}); // Forzar la reconstrucción del widget
                                 },
@@ -94,10 +98,31 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 ),
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      value.toString(),
-                      style: const TextStyle(fontFamily: 'monospace'),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: session.exerciseProgress.map((progress) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              progress.exerciseName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...progress.sets.map((set) => Padding(
+                              padding: const EdgeInsets.only(left: 16.0, bottom: 4.0),
+                              child: Text(
+                                'Serie ${set.setNumber}: ${set.repetitions} reps${set.weight != null ? ' - ${set.weight} ${set.weightUnit}' : ''}',
+                              ),
+                            )),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
