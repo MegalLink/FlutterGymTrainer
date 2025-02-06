@@ -25,7 +25,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           title: const Text('Debug Hive Data'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Entrenamiento Activo'),
+              Tab(text: 'Historial de entrenamientos'),
             ],
           ),
         ),
@@ -102,21 +102,56 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: session.exerciseProgress.map((progress) {
+                        // Calculate max weight for this exercise in this session
+                        double? maxWeight;
+                        String? maxWeightUnit;
+                        for (var set in progress.sets) {
+                          if (set.weight != null) {
+                            if (maxWeight == null || set.weight! > maxWeight) {
+                              maxWeight = set.weight;
+                              maxWeightUnit = set.weightUnit;
+                            }
+                          }
+                        }
+                        if (progress.sets.isEmpty) {
+                          return const Row();
+                        }
+                            
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              progress.exerciseName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    progress.exerciseName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                if (maxWeight != null)
+                                  Text(
+                                    'Peso máximo: $maxWeight $maxWeightUnit',
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
                             ),
+                           
                             const SizedBox(height: 8),
                             ...progress.sets.map((set) => Padding(
                               padding: const EdgeInsets.only(left: 16.0, bottom: 4.0),
                               child: Text(
-                                'Serie ${set.setNumber}: ${set.repetitions} reps${set.weight != null ? ' - ${set.weight} ${set.weightUnit}' : ''}',
+                                'Serie #${set.setNumber}: Repeticiónes ${set.repetitions}, Peso ${set.weight} ${set.weightUnit}',
+                                style: TextStyle(
+                                  color: set.weight != null && maxWeight != null && set.weight == maxWeight 
+                                    ? Colors.blue 
+                                    : null,
+                                ),
                               ),
                             )),
                             const SizedBox(height: 16),

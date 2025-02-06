@@ -6,6 +6,7 @@ import 'pages/index.dart';
 import 'controllers/exercise_controller.dart';
 import 'controllers/training_controller.dart';
 import 'services/database_service.dart';
+import 'controllers/exercise_progress_controller.dart'; // Updated import statement
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +17,7 @@ void main() async {
   
   // Register database service with GetX
   Get.put<DatabaseService>(databaseService);
+  Get.put(ExerciseProgressController()); // Updated ExerciseProgressController initialization
 
   // Initialize Hive
   await Hive.initFlutter();
